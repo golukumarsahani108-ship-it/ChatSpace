@@ -356,18 +356,19 @@ function ensureMessageActionStyles(){
       align-items:center;
       gap:8px;
       padding:10px 12px;
-      border:1px solid rgba(255,255,255,.14);
+      border:1px solid var(--panel-border);
       border-radius:18px;
-      background:rgba(16,22,38,.88);
+      background:var(--selection-bg);
+      color:var(--text);
       backdrop-filter:blur(18px);
-      box-shadow:0 16px 50px rgba(0,0,0,.35);
+      box-shadow:0 16px 50px rgba(0,0,0,.30);
     }
 
     .message-selection-bar button,
     .message-context-menu button{
       border:0;
-      color:inherit;
-      background:rgba(255,255,255,.08);
+      color:var(--text);
+      background:var(--button-bg);
       padding:9px 12px;
       border-radius:12px;
       cursor:pointer;
@@ -376,7 +377,12 @@ function ensureMessageActionStyles(){
 
     .message-selection-bar button:hover,
     .message-context-menu button:hover{
-      background:rgba(255,255,255,.15);
+      background:var(--menu-hover);
+      color:var(--blue);
+    }
+
+    .message-context-menu .danger{
+      color:var(--danger);
     }
 
     .message-selection-count{
@@ -393,11 +399,12 @@ function ensureMessageActionStyles(){
       display:flex;
       flex-direction:column;
       gap:4px;
-      border:1px solid rgba(255,255,255,.14);
+      border:1px solid var(--menu-border);
       border-radius:16px;
-      background:rgba(13,18,32,.96);
+      background:var(--menu-bg);
+      color:var(--menu-text);
       backdrop-filter:blur(20px);
-      box-shadow:0 20px 60px rgba(0,0,0,.42);
+      box-shadow:0 20px 60px rgba(0,0,0,.30);
     }
 
     .message-context-menu button{

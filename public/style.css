@@ -1959,3 +1959,303 @@ body {
     opacity: .82;
   }
 }
+
+/* =========================================================
+   FINAL LAYOUT + PAGE SCROLL SAFETY
+   Chat page stays fixed; landing/settings pages can scroll.
+========================================================= */
+
+html {
+  width: 100%;
+  min-height: 100%;
+  overflow-x: hidden;
+}
+
+body {
+  width: 100%;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Only the actual chat screen is locked to the viewport. */
+body:has(.app-shell) {
+  overflow: hidden;
+}
+
+/* Settings and landing pages must always be vertically scrollable. */
+body.settings-page,
+body.landing {
+  display: block;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  min-height: 100vh;
+}
+
+/* =========================================================
+   LANDING PAGE
+========================================================= */
+
+body.landing {
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  color: var(--text);
+}
+
+.landing {
+  min-height: 100vh;
+}
+
+.landing-card {
+  width: min(720px, 100%);
+  padding: 58px;
+  border-radius: 34px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.landing-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(
+      circle at 50% 0%,
+      rgba(92, 194, 255, .14),
+      transparent 42%
+    );
+}
+
+.landing-card > * {
+  position: relative;
+  z-index: 1;
+}
+
+.landing-card .brand {
+  justify-content: center;
+  font-size: 18px;
+}
+
+.landing-card .eyebrow {
+  margin-top: 30px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 800;
+  letter-spacing: .2px;
+}
+
+.brand-dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: #6ecbff;
+  box-shadow: 0 0 22px #3bb7ff;
+}
+
+.eyebrow {
+  margin-top: 30px;
+  color: var(--blue);
+  font-size: 11px;
+  letter-spacing: 3px;
+  font-weight: 800;
+}
+
+.landing h1 {
+  margin: 18px 0;
+  font-size: clamp(42px, 8vw, 78px);
+  line-height: .98;
+  letter-spacing: -4px;
+  color: var(--text);
+}
+
+.landing h1 span {
+  color: #69c9ff;
+}
+
+.lead {
+  max-width: 570px;
+  margin: 0 auto 30px;
+  color: var(--text-soft);
+  font-size: 16px;
+  line-height: 1.7;
+}
+
+.google-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+
+  width: min(360px, 100%);
+  margin: auto;
+  padding: 15px 20px;
+
+  border-radius: 16px;
+
+  background: #f5f8ff;
+  color: #07162f;
+
+  text-decoration: none;
+  font-weight: 800;
+
+  transition: .2s ease;
+}
+
+.google-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 35px rgba(91, 188, 255, .2);
+}
+
+.google-g {
+  font-size: 20px;
+  font-weight: 900;
+}
+
+.tiny {
+  margin-top: 18px;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.notice {
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(255, 116, 116, .1);
+  border: 1px solid rgba(255, 116, 116, .2);
+  color: #ffb7b7;
+  margin-bottom: 15px;
+}
+
+/* =========================================================
+   ACTUAL MESSAGE CONTEXT MENU
+   chat.js creates .message-context-menu dynamically.
+========================================================= */
+
+.message-context-menu {
+  position: fixed !important;
+  z-index: 100000 !important;
+
+  min-width: 210px;
+  max-width: min(240px, calc(100vw - 20px));
+
+  padding: 7px;
+
+  border: 1px solid var(--menu-border) !important;
+  border-radius: 16px;
+
+  background: var(--menu-bg) !important;
+  color: var(--menu-text) !important;
+
+  box-shadow: 0 22px 60px rgba(0, 0, 0, .30);
+
+  backdrop-filter: blur(22px) saturate(145%);
+  -webkit-backdrop-filter: blur(22px);
+
+  overflow: hidden;
+  animation: messageMenuInFinal .14s ease;
+}
+
+.message-context-menu button {
+  width: 100%;
+  display: block;
+
+  border: 0 !important;
+  border-radius: 11px;
+
+  padding: 10px 12px;
+
+  background: transparent !important;
+  color: var(--menu-text) !important;
+
+  text-align: left;
+  font-size: 13px;
+  font-weight: 600;
+
+  cursor: pointer;
+  transition: .15s ease;
+}
+
+.message-context-menu button:hover {
+  background: var(--menu-hover) !important;
+  color: var(--blue) !important;
+}
+
+.message-context-menu button.disabled {
+  opacity: .45;
+  pointer-events: none;
+}
+
+.message-context-menu .danger {
+  color: var(--danger) !important;
+}
+
+@keyframes messageMenuInFinal {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Selection bar created by chat.js */
+.message-selection-bar {
+  background: var(--selection-bg) !important;
+  color: var(--text) !important;
+  border-color: var(--panel-border) !important;
+}
+
+.message-selection-bar button {
+  color: var(--text) !important;
+  background: var(--button-bg) !important;
+  border: 1px solid var(--button-border) !important;
+}
+
+.message-selection-bar button:hover {
+  background: var(--menu-hover) !important;
+  color: var(--blue) !important;
+}
+
+/* =========================================================
+   SETTINGS SCROLL
+========================================================= */
+
+body.settings-page .settings-shell {
+  min-height: 100vh;
+}
+
+body.settings-page .settings-shell {
+  padding-bottom: 80px;
+}
+
+/* =========================================================
+   MOBILE PAGE SAFETY
+========================================================= */
+
+@media (max-width: 800px) {
+  body.landing {
+    display: grid;
+    min-height: 100vh;
+    padding: 16px;
+  }
+
+  .landing-card {
+    padding: 38px 24px;
+  }
+
+  .landing h1 {
+    letter-spacing: -2px;
+  }
+
+  body.settings-page {
+    overflow-y: auto !important;
+  }
+}
