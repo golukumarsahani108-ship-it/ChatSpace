@@ -1,0 +1,196 @@
+/* ChatSpace extras: app icon, emoji picker, settings page, themes.
+   Loaded after style.css on every page. */
+
+:root { color-scheme: dark; }
+.glass { -webkit-backdrop-filter: blur(24px); }
+@keyframes pop { from { opacity: 0; transform: translateY(6px) scale(.98); } to { opacity: 1; transform: none; } }
+
+/* ---------- Brand icon ---------- */
+.brand-icon { width: 28px; height: 28px; border-radius: 9px; display: block; box-shadow: 0 4px 16px rgba(60,160,255,.35); }
+.landing-icon {
+  width: 108px; height: 108px; border-radius: 30px; margin: 0 auto 20px; display: block;
+  box-shadow: 0 24px 70px rgba(60,140,255,.45), 0 0 0 1px rgba(255,255,255,.14);
+}
+.landing-card .eyebrow { margin-top: 30px; }
+
+/* ---------- Composer + emoji picker ---------- */
+.composer { position: relative; }
+.emoji-btn { font-size: 19px; line-height: 1; }
+.emoji-btn.active { background: rgba(70,196,255,.17); border-color: #53caff; }
+
+.emoji-panel {
+  position: absolute; left: 10px; bottom: calc(100% + 8px);
+  width: min(380px, calc(100% - 20px)); height: 336px;
+  border-radius: 20px; display: flex; flex-direction: column; overflow: hidden; z-index: 9;
+  background: linear-gradient(145deg, rgba(14,34,68,.95), rgba(6,18,40,.97));
+  animation: pop .14s ease-out;
+}
+.emoji-tabs { display: flex; gap: 2px; padding: 8px 8px 6px; border-bottom: 1px solid rgba(255,255,255,.07); overflow-x: auto; flex: none; scrollbar-width: none; }
+.emoji-tabs::-webkit-scrollbar { display: none; }
+.emoji-tab { flex: none; width: 38px; height: 34px; border: 0; border-radius: 10px; background: transparent; font-size: 18px; cursor: pointer; opacity: .55; }
+.emoji-tab:hover { opacity: .9; }
+.emoji-tab.active { background: rgba(100,194,255,.18); opacity: 1; }
+.emoji-title { padding: 9px 14px 2px; font-size: 11px; letter-spacing: 1.6px; text-transform: uppercase; color: #7f9cb9; flex: none; }
+.emoji-grid { flex: 1; overflow-y: auto; padding: 6px 8px 10px; display: grid; grid-template-columns: repeat(8, 1fr); gap: 2px; align-content: start; }
+.emoji-item {
+  border: 0; background: transparent; border-radius: 10px; font-size: 24px; line-height: 1; height: 38px; cursor: pointer; padding: 0;
+  font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
+}
+.emoji-item:hover, .emoji-item:focus-visible { background: rgba(100,194,255,.18); outline: 0; }
+.emoji-empty { grid-column: 1 / -1; text-align: center; color: #7f9cb9; font-size: 12px; padding: 30px 0; }
+
+/* one-time text */
+.media-once.text-once { height: 96px; }
+.once-done { color: #9db8d4; font-style: italic; }
+
+/* ---------- Settings page ---------- */
+body.settings-page { display: block; padding: 0 14px; overflow-x: hidden; }
+.settings-shell { position: relative; width: min(720px, 100%); margin: 0 auto; padding: 24px 0 80px; }
+.settings-top { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; }
+.settings-top h1 { margin: 0; font-size: 26px; letter-spacing: -.5px; }
+.settings-shell .back-link {
+  width: 40px; height: 40px; border-radius: 13px; display: grid; place-items: center;
+  font-size: 26px; line-height: 1; text-decoration: none;
+  border: 1px solid rgba(143,205,255,.16); background: rgba(255,255,255,.04);
+}
+.panel.card { border-radius: 24px; padding: 22px 24px; margin-bottom: 16px; }
+.card h2 { margin: 0 0 6px; font-size: 12px; letter-spacing: 2.4px; text-transform: uppercase; color: #79caff; }
+.field { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 16px 0; border-top: 1px solid rgba(255,255,255,.06); }
+.card h2 + .field { border-top: 0; }
+.field-text { min-width: 0; flex: 1; }
+.field-title { font-weight: 700; font-size: 15px; }
+.field-note { margin: 4px 0 0; font-size: 12px; color: #7f9cb9; line-height: 1.55; }
+.field-value { color: #bfe4ff; font-weight: 700; white-space: nowrap; }
+
+.segmented { display: inline-flex; padding: 3px; border-radius: 12px; background: rgba(0,8,20,.4); border: 1px solid rgba(137,203,255,.13); gap: 2px; flex: none; }
+.segmented button { border: 0; background: transparent; color: #9db8d4; padding: 8px 13px; border-radius: 9px; cursor: pointer; font-weight: 600; font-size: 13px; }
+.segmented button[aria-pressed="true"] { background: #58c5ff; color: #03203a; }
+
+.switch { width: 50px; height: 30px; border-radius: 99px; border: 1px solid rgba(137,203,255,.2); background: rgba(255,255,255,.08); position: relative; cursor: pointer; flex: none; transition: .2s; padding: 0; }
+.switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: #dff4ff; transition: .2s; box-shadow: 0 2px 6px rgba(0,0,0,.3); }
+.switch[aria-checked="true"] { background: #58c5ff; border-color: #58c5ff; }
+.switch[aria-checked="true"]::after { transform: translateX(20px); background: #fff; }
+
+.btn { border: 1px solid rgba(143,205,255,.2); background: rgba(255,255,255,.05); color: #dff4ff; padding: 10px 16px; border-radius: 12px; font-weight: 700; cursor: pointer; flex: none; }
+.btn:hover:not(:disabled) { background: rgba(255,255,255,.09); }
+.btn:disabled { opacity: .5; cursor: default; }
+.btn.primary { background: #58c5ff; color: #03203a; border-color: #58c5ff; }
+.btn.primary:hover:not(:disabled) { background: #74d0ff; }
+.btn.danger { color: #ff9b9b; border-color: rgba(255,116,116,.3); background: rgba(255,116,116,.08); }
+
+.profile-row { display: flex; gap: 18px; align-items: center; padding: 8px 0 14px; }
+.avatar-edit {
+  position: relative; width: 92px; height: 92px; border-radius: 28px; overflow: hidden; cursor: pointer; flex: none;
+  border: 1px solid rgba(255,255,255,.18); padding: 0; color: #fff; font-size: 32px; font-weight: 800;
+  background: linear-gradient(135deg, #2166a5, #65d8ff); display: grid; place-items: center;
+  box-shadow: 0 12px 34px rgba(40,140,255,.3);
+}
+.avatar-edit img { width: 100%; height: 100%; object-fit: cover; }
+.avatar-edit .cam { position: absolute; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,.5); font-size: 11px; padding: 5px 0; text-align: center; font-weight: 600; letter-spacing: .3px; }
+.profile-meta { min-width: 0; }
+.profile-meta .field-title { font-size: 18px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.form-actions { display: flex; align-items: center; gap: 12px; margin-top: 6px; }
+.save-msg { font-size: 12px; color: #7f9cb9; min-height: 1em; }
+
+@media (max-width: 560px) {
+  .panel.card { padding: 18px; }
+  .field { flex-wrap: wrap; }
+  .form-grid { grid-template-columns: 1fr; }
+  .profile-row { gap: 14px; }
+}
+@media (max-width: 800px) {
+  .emoji-panel { height: 300px; }
+  .emoji-grid { grid-template-columns: repeat(7, 1fr); }
+}
+
+/* ---------- Glass effect OFF (solid panels, lighter on old phones) ---------- */
+:root[data-glass="off"] .glass { backdrop-filter: none; -webkit-backdrop-filter: none; background: #0f2445; box-shadow: none; }
+:root[data-glass="off"] .emoji-panel { background: #0f2445; }
+:root[data-glass="off"] .bg-orb, :root[data-glass="off"] .stars { display: none; }
+
+/* ---------- Density ---------- */
+:root[data-density="compact"] .messages { gap: 3px; padding: 16px 20px; }
+:root[data-density="compact"] .bubble { padding: 6px 11px; border-radius: 14px 14px 14px 4px; }
+:root[data-density="compact"] .mine .bubble { border-radius: 14px 14px 4px 14px; }
+:root[data-density="compact"] .meta { margin-top: 2px; }
+:root[data-density="compact"] .friend { padding: 8px 10px; }
+
+/* ---------- Daylight theme ---------- */
+:root[data-theme="light"] { color-scheme: light; }
+:root[data-theme="light"], :root[data-theme="light"] body { color: #0d2542; background: #e6f1ff; }
+:root[data-theme="light"] body {
+  background:
+    radial-gradient(circle at 15% 10%, rgba(90,175,255,.38), transparent 40%),
+    radial-gradient(circle at 85% 80%, rgba(120,220,255,.38), transparent 42%),
+    #e6f1ff;
+}
+:root[data-theme="light"] .stars { display: none; }
+:root[data-theme="light"] .bg-orb { opacity: .3; }
+:root[data-theme="light"] .glass {
+  background: linear-gradient(145deg, rgba(255,255,255,.78), rgba(226,240,255,.7));
+  border-color: rgba(70,140,220,.22);
+  box-shadow: 0 20px 60px rgba(40,90,160,.16), inset 0 1px rgba(255,255,255,.8);
+}
+:root[data-theme="light"][data-glass="off"] .glass { background: #f4f9ff; box-shadow: 0 6px 24px rgba(40,90,160,.12); }
+:root[data-theme="light"] .emoji-panel, :root[data-theme="light"][data-glass="off"] .emoji-panel { background: rgba(250,253,255,.97); }
+
+:root[data-theme="light"] .lead { color: #48688a; }
+:root[data-theme="light"] .eyebrow, :root[data-theme="light"] .card h2, :root[data-theme="light"] .back-link { color: #1d84d6; }
+:root[data-theme="light"] .landing h1 span { color: #1d8fe0; }
+:root[data-theme="light"] .tiny, :root[data-theme="light"] .help, :root[data-theme="light"] .field-note,
+:root[data-theme="light"] .user-copy span, :root[data-theme="light"] .friend-info span, :root[data-theme="light"] .chat-person span,
+:root[data-theme="light"] .form-row label, :root[data-theme="light"] .side-heading, :root[data-theme="light"] .empty-chat,
+:root[data-theme="light"] .emoji-title, :root[data-theme="light"] .save-msg, :root[data-theme="light"] .emoji-empty { color: #5b7695; }
+:root[data-theme="light"] .empty-chat h2 { color: #0d2542; }
+:root[data-theme="light"] .field-value { color: #1b5c9b; }
+:root[data-theme="light"] .field { border-top-color: rgba(40,100,180,.12); }
+:root[data-theme="light"] .chat-head, :root[data-theme="light"] .composer, :root[data-theme="light"] .me-card { border-color: rgba(40,100,180,.13); }
+:root[data-theme="light"] .emoji-tabs { border-bottom-color: rgba(40,100,180,.13); }
+
+:root[data-theme="light"] .icon-btn, :root[data-theme="light"] .round-btn, :root[data-theme="light"] .ghost-btn,
+:root[data-theme="light"] .settings-shell .back-link, :root[data-theme="light"] .one-time, :root[data-theme="light"] .btn {
+  background: rgba(255,255,255,.7); color: #24507f; border-color: rgba(70,140,220,.28);
+}
+:root[data-theme="light"] .btn.primary, :root[data-theme="light"] .primary { background: #2f9bff; color: #fff; border-color: #2f9bff; }
+:root[data-theme="light"] .btn.danger { color: #c93a3a; background: rgba(255,116,116,.12); border-color: rgba(220,70,70,.3); }
+:root[data-theme="light"] .one-time.active, :root[data-theme="light"] .emoji-btn.active { background: rgba(47,155,255,.16); border-color: #2f9bff; color: #1d7fd4; }
+:root[data-theme="light"] .send-btn { background: #2f9bff; color: #fff; }
+:root[data-theme="light"] .friend:hover, :root[data-theme="light"] .friend.active { background: rgba(47,155,255,.12); }
+:root[data-theme="light"] .emoji-item:hover, :root[data-theme="light"] .emoji-tab.active { background: rgba(47,155,255,.16); }
+
+:root[data-theme="light"] .bubble { background: rgba(255,255,255,.9); border-color: rgba(70,140,220,.2); }
+:root[data-theme="light"] .mine .bubble { background: linear-gradient(135deg, #2f9bff, #5fbcff); color: #fff; border-color: transparent; }
+:root[data-theme="light"] .meta { color: #6a86a6; }
+:root[data-theme="light"] .mine .meta, :root[data-theme="light"] .mine .one-label { color: rgba(255,255,255,.88); }
+:root[data-theme="light"] .one-label { color: #1f7ac0; }
+:root[data-theme="light"] .typing { color: #1d84d6; }
+:root[data-theme="light"] .media { background: #dfeaf7; }
+:root[data-theme="light"] .media-once { background: linear-gradient(135deg, #dcecff, #bdd9ff); color: #24507f; border-color: rgba(70,140,220,.3); }
+:root[data-theme="light"] .media-once small, :root[data-theme="light"] .once-done { color: #4a6d92; }
+:root[data-theme="light"] .composer textarea, :root[data-theme="light"] .form-row input {
+  background: rgba(255,255,255,.85); color: #0d2542; border-color: rgba(70,140,220,.28);
+}
+:root[data-theme="light"] .segmented { background: rgba(255,255,255,.6); border-color: rgba(70,140,220,.25); }
+:root[data-theme="light"] .segmented button { color: #48688a; }
+:root[data-theme="light"] .segmented button[aria-pressed="true"] { background: #2f9bff; color: #fff; }
+:root[data-theme="light"] .switch { background: rgba(40,100,180,.15); border-color: rgba(70,140,220,.3); }
+:root[data-theme="light"] .switch[aria-checked="true"] { background: #2f9bff; border-color: #2f9bff; }
+:root[data-theme="light"] .toast { background: #fff; color: #0d2542; border-color: rgba(70,140,220,.3); box-shadow: 0 15px 40px rgba(40,90,160,.25); }
+:root[data-theme="light"] .modal { background: rgba(190,215,245,.6); }
+:root[data-theme="light"] .modal-close { color: #48688a; }
+:root[data-theme="light"] .notice { color: #b13a3a; }
+
+/* ---------- Layout safety: never let the composer push the page wider than the screen ---------- */
+.app-shell { grid-template-columns: 330px minmax(0, 1fr); }
+.chat-panel, .messages { min-width: 0; }
+.composer textarea { min-width: 0; width: 100%; }
+@media (max-width: 800px) {
+  .app-shell { grid-template-columns: minmax(0, 1fr); }
+  .composer { gap: 6px; }
+}
+@media (max-width: 420px) {
+  .composer .icon-btn { width: 36px; height: 38px; border-radius: 12px; }
+  .composer .one-time { padding: 0 8px; height: 38px; }
+  .composer .send-btn { width: 40px; height: 40px; }
+}

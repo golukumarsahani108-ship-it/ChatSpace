@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Settings · ChatSpace</title>
+<meta name="theme-color" content="#07162f">
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="stylesheet" href="/style.css"><link rel="stylesheet" href="/extra.css">
+<script src="/prefs.js"></script>
+</head>
+<body class="settings-page">
+<div class="bg-orb orb-a"></div><div class="bg-orb orb-b"></div><div class="stars"></div>
+
+<main class="settings-shell">
+  <div class="settings-top">
+    <a class="back-link" href="/chat.html" aria-label="Back to chats">‹</a>
+    <h1>Settings</h1>
+  </div>
+
+  <section class="panel card glass">
+    <h2>Profile</h2>
+    <div class="profile-row">
+      <button class="avatar-edit" id="avatarBtn" type="button" aria-label="Change profile picture"></button>
+      <input id="avatarInput" type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/avif" hidden>
+      <div class="profile-meta">
+        <div class="field-title" id="setName">…</div>
+        <div class="field-value" id="setEmail" style="font-size:13px;font-weight:600">…</div>
+        <p class="field-note" id="setSince"></p>
+      </div>
+    </div>
+    <div class="form-grid">
+      <div class="form-row"><label for="displayName">DISPLAY NAME</label><input id="displayName" maxlength="60" autocomplete="off"></div>
+      <div class="form-row"><label for="username">USERNAME</label><input id="username" maxlength="30" autocomplete="off" autocapitalize="off"></div>
+    </div>
+    <p class="field-note">Friends find you by username. Your email stays private and is never shown to friends.</p>
+    <div class="form-actions"><button class="btn primary" id="saveProfile" type="button">Save changes</button><span class="save-msg" id="saveMsg"></span></div>
+  </section>
+
+  <section class="panel card glass">
+    <h2>Appearance</h2>
+    <div class="field">
+      <div class="field-text">
+        <div class="field-title">Theme</div>
+        <p class="field-note">Deep space, or a pale daylight version of the same layout.</p>
+      </div>
+      <div class="segmented" id="themeGroup" role="group" aria-label="Theme">
+        <button type="button" data-theme="space" aria-pressed="false">Space</button>
+        <button type="button" data-theme="light" aria-pressed="false">Daylight</button>
+      </div>
+    </div>
+    <div class="field">
+      <div class="field-text">
+        <div class="field-title">Glass effect</div>
+        <p class="field-note">Frosted, translucent panels. Turn this off for solid panels and a lighter load on older phones.</p>
+      </div>
+      <button class="switch" id="glassSwitch" type="button" role="switch" aria-checked="true" aria-label="Glass effect"></button>
+    </div>
+    <div class="field">
+      <div class="field-text">
+        <div class="field-title">Chat density</div>
+        <p class="field-note">How much breathing room message bubbles get.</p>
+      </div>
+      <div class="segmented" id="densityGroup" role="group" aria-label="Chat density">
+        <button type="button" data-density="comfortable" aria-pressed="false">Comfortable</button>
+        <button type="button" data-density="compact" aria-pressed="false">Compact</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel card glass">
+    <h2>App &amp; notifications</h2>
+    <div class="field">
+      <div class="field-text">
+        <div class="field-title">Install ChatSpace</div>
+        <p class="field-note" id="installNote">Add it to your home screen or desktop and it opens like a real app, without the browser bar.</p>
+      </div>
+      <button class="btn primary" id="installBtn" type="button">Install app</button>
+    </div>
+    <div class="field">
+      <div class="field-text">
+        <div class="field-title">Message notifications</div>
+        <p class="field-note" id="notifNote">Get a system notification when a message arrives while ChatSpace is open in the background.</p>
+      </div>
+      <button class="btn" id="notifBtn" type="button">Turn on</button>
+    </div>
+  </section>
+
+  <section class="panel card glass">
+    <h2>Account</h2>
+    <div class="field">
+      <div class="field-text">
+        <div class="field-title">Seats</div>
+        <p class="field-note" id="seatNote">ChatSpace holds a fixed number of accounts.</p>
+      </div>
+      <span class="field-value" id="seatValue">—</span>
+    </div>
+    <div class="field">
+      <div class="field-text">
+        <div class="field-title">Log out</div>
+        <p class="field-note">Ends this session on this device. Your conversations stay where they are.</p>
+      </div>
+      <button class="btn danger" id="logoutBtn" type="button">Log out</button>
+    </div>
+  </section>
+</main>
+
+<div class="toast" id="toast"></div>
+<script src="/socket.io/socket.io.js"></script>
+<script src="/settings.js"></script>
+</body>
+</html>

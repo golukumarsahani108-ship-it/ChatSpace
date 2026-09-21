@@ -1,0 +1,20 @@
+{
+  "id": "/",
+  "name": "ChatSpace",
+  "short_name": "ChatSpace",
+  "description": "Private realtime 1-to-1 chat in a spatial glass space.",
+  "start_url": "/chat.html",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#040b1b",
+  "theme_color": "#07162f",
+  "categories": ["social", "communication"],
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

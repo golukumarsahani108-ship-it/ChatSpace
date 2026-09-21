@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#07162f"><title>ChatSpace — Private chat</title>
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="stylesheet" href="/style.css"><link rel="stylesheet" href="/extra.css">
+<script src="/prefs.js"></script>
+</head>
+<body class="landing">
+<div class="bg-orb orb-a"></div><div class="bg-orb orb-b"></div><div class="stars"></div>
+<main class="landing-card glass">
+  <img class="landing-icon" src="/icon-512.png" width="108" height="108" alt="ChatSpace">
+  <div class="brand"><span>ChatSpace</span></div>
+  <div class="eyebrow">PRIVATE • REALTIME • 1-TO-1</div>
+  <h1>Your little space<br><span>to stay connected.</span></h1>
+  <p class="lead">A small private chat universe for friends. Add people by username, message in realtime, and share photos or videos.</p>
+  <div id="authError" class="notice hidden"></div>
+  <a class="google-btn" href="/auth/google"><span class="google-g">G</span> Continue with Google</a>
+  <div class="tiny">Maximum 10 registered users • Your email is not shown to friends</div>
+</main>
+<script>
+const p=new URLSearchParams(location.search), e=p.get("authError");
+if(e){const box=document.getElementById("authError");box.textContent=decodeURIComponent(e);box.classList.remove("hidden");}
+else{ // already signed in? go straight to the chat
+  fetch("/api/me",{credentials:"same-origin"}).then(r=>{if(r.ok)location.replace("/chat.html")}).catch(()=>{});
+}
+</script>
+</body></html>
