@@ -1,5 +1,9 @@
 const $=s=>document.querySelector(s);
 let me=null,friends=[],active=null,socket=null,oneTime=false,typingTimer=null;
+let selectedMessages=new Set();
+let contextMenu=null;
+let longPressTimer=null;
+let actionStylesReady=false;
 
 async function api(url,opt={}){const r=await fetch(url,{credentials:"same-origin",...opt});let d={};try{d=await r.json()}catch{}if(r.status===401){location.href="/";throw new Error("AUTH")}if(!r.ok)throw new Error(d.message||d.error||"Request failed");return d}
 function esc(s){const d=document.createElement("div");d.textContent=s??"";return d.innerHTML}
@@ -76,53 +80,210 @@ function connectSocket(){
 
 /* ---------------- Messages ---------------- */
 function renderMessage(m){
- const wrap=document.createElement("div");wrap.className=`bubble-row ${m.mine?"mine":""}`;wrap.dataset.message=m.id;
- let body="";
- if(m.deletedAt)body="<p class='deleted'>Message deleted</p>";
- else if(m.type==="text"){
-   if(m.oneTime&&!m.mine){
-     body=m.viewedAt?`<p class="once-done">One-time message opened</p>`:`<button class="media-once text-once" data-once-text="${m.id}">✉<br><small>Tap to read once</small></button>`;
-   }else body=`<p>${esc(m.text)}</p>`;
-   if(m.oneTime)body+=`<span class="one-label">1× ${m.viewedAt?"opened":"view once"}</span>`;
- }else{
-   const expired=m.oneTime&&m.viewedAt&&!m.mine;
-   if(expired)body=`<p>One-time media opened</p>`;
-   else if(m.type==="image")body=m.oneTime&&!m.mine?`<button class="media-once" data-once-id="${m.id}">▣<br><small>Tap to open image once</small></button>`:`<img class="media" src="${esc(m.mediaUrl)}" alt="image">`;
-   else body=m.oneTime&&!m.mine?`<button class="media-once" data-once-id="${m.id}">▶<br><small>Tap to open video once</small></button>`:`<video class="media" controls playsinline preload="metadata" src="${esc(m.mediaUrl)}"></video>`;
-   if(m.oneTime)body+=`<span class="one-label">1× ${m.viewedAt?"opened":"view once"}</span>`;
- }
- const status=m.mine?(m.oneTime&&m.viewedAt?"Opened":m.readAt?"Read":m.deliveredAt?"Delivered":"Sent"):"";
- wrap.innerHTML=`<div class="bubble">${body}<div class="meta"><span>${time(m.createdAt)}</span>${status?`<span>${status}</span>`:""}</div></div>`;
- $("#messages").appendChild(wrap);
+  ensureMessageActionStyles();
+  rememberMessage(m);
 
- // read receipts: only when the tab is visible; one-time items count as read once opened
- if(!m.mine&&m.senderId===active?.id&&!m.readAt&&!m.oneTime&&!m.deletedAt){
-   if(document.hidden)wrap.dataset.unread="1";else markRead(m.id);
- }
+  if(m.deletedForMe)return;
 
- const once=wrap.querySelector("[data-once-id]");
- if(once) once.addEventListener("click",async()=>{
-   if(once.dataset.busy)return; once.dataset.busy="1";
-   try{
-     const r=await fetch(`/api/media-once/${encodeURIComponent(m.id)}`);
-     if(!r.ok)throw new Error(r.status===410?"This one-time item was already opened.":"Could not open media.");
-     const blob=await r.blob(), url=URL.createObjectURL(blob);
-     if(m.type==="image") once.outerHTML=`<img class="media" src="${url}" alt="image">`;
-     else once.outerHTML=`<video class="media" controls autoplay playsinline src="${url}"></video>`;
-     const label=wrap.querySelector(".one-label");if(label)label.textContent="1× opened";
-   }catch(e){once.dataset.busy="";toast(e.message)}
- });
+  const old=document.querySelector(`[data-message="${m.id}"]`);
+  if(old)old.remove();
 
- const onceText=wrap.querySelector("[data-once-text]");
- if(onceText) onceText.addEventListener("click",async()=>{
-   if(onceText.dataset.busy)return; onceText.dataset.busy="1";
-   try{
-     const d=await api(`/api/messages/${encodeURIComponent(m.id)}/open-once`,{method:"POST"});
-     const p=document.createElement("p");p.textContent=d.text;onceText.replaceWith(p);
-     const label=wrap.querySelector(".one-label");if(label)label.textContent="1× opened";
-   }catch(e){onceText.dataset.busy="";if(e.message!=="AUTH")toast(e.message)}
- });
+  const wrap=document.createElement("div");
+  wrap.className=`bubble-row ${m.mine?"mine":""}`;
+  wrap.dataset.message=m.id;
+
+  let body="";
+
+  if(m.deletedAt){
+    body="<p class='deleted'>Message deleted for everyone</p>";
+  }else if(m.type==="text"){
+    if(m.oneTime&&!m.mine){
+      body=m.viewedAt
+        ? `<p class="once-done">One-time message opened</p>`
+        : `<button class="media-once text-once" data-once-text="${m.id}">✉<br><small>Tap to read once</small></button>`;
+    }else{
+      body=`<p>${esc(m.text)}</p>`;
+    }
+
+    if(m.oneTime){
+      body+=`<span class="one-label">1× ${m.viewedAt?"opened":"view once"}</span>`;
+    }
+  }else{
+    const expired=m.oneTime&&m.viewedAt&&!m.mine;
+
+    if(expired){
+      body=`<p>One-time media opened</p>`;
+    }else if(m.type==="image"){
+      body=m.oneTime&&!m.mine
+        ? `<button class="media-once" data-once-id="${m.id}">▣<br><small>Tap to open image once</small></button>`
+        : `<img class="media" src="${esc(m.mediaUrl)}" alt="image">`;
+    }else{
+      body=m.oneTime&&!m.mine
+        ? `<button class="media-once" data-once-id="${m.id}">▶<br><small>Tap to open video once</small></button>`
+        : `<video class="media" controls playsinline preload="metadata" src="${esc(m.mediaUrl)}"></video>`;
+    }
+
+    if(m.oneTime){
+      body+=`<span class="one-label">1× ${m.viewedAt?"opened":"view once"}</span>`;
+    }
+  }
+
+  const status=m.mine
+    ? (m.oneTime&&m.viewedAt
+        ? "Opened"
+        : m.readAt
+          ? "Read"
+          : m.deliveredAt
+            ? "Delivered"
+            : "Sent")
+    : "";
+
+  const forwardedLabel=m.forwarded
+    ? `<div class="forwarded-label">↗ Forwarded</div>`
+    : "";
+
+  const selectionClass=selectedMessages.has(m.id)?" selected":"";
+
+  wrap.innerHTML=`
+    <div class="message-action-hit${selectionClass}" aria-label="Message actions">
+      <div class="bubble">
+        ${forwardedLabel}
+        ${body}
+        <div class="meta">
+          <span>${time(m.createdAt)}</span>
+          ${status?`<span>${status}</span>`:""}
+        </div>
+      </div>
+    </div>
+  `;
+
+  $( "#messages" ).appendChild(wrap);
+
+  const hit=wrap.querySelector(".message-action-hit");
+
+  hit.addEventListener("contextmenu",e=>{
+    e.preventDefault();
+    openMessageMenu(m,e.clientX,e.clientY);
+  });
+
+  hit.addEventListener("pointerdown",e=>{
+    if(e.pointerType!=="touch")return;
+
+    clearTimeout(longPressTimer);
+
+    longPressTimer=setTimeout(()=>{
+      openMessageMenu(m,e.clientX,e.clientY);
+    },550);
+  });
+
+  ["pointerup","pointercancel","pointerleave"].forEach(type=>{
+    hit.addEventListener(type,()=>{
+      clearTimeout(longPressTimer);
+    });
+  });
+
+  // Double click / double tap = select.
+  hit.addEventListener("dblclick",()=>{
+    toggleMessageSelection(m.id);
+  });
+
+  hit.addEventListener("click",e=>{
+    if(!document.body.classList.contains("message-selection-mode"))return;
+    if(e.target.closest("button,a,video,img"))return;
+    toggleMessageSelection(m.id);
+  });
+
+  // read receipts
+  if(!m.mine&&m.senderId===active?.id&&!m.readAt&&!m.oneTime&&!m.deletedAt){
+    if(document.hidden)wrap.dataset.unread="1";
+    else markRead(m.id);
+  }
+
+  const once=wrap.querySelector("[data-once-id]");
+
+  if(once) once.addEventListener("click",async e=>{
+    e.stopPropagation();
+
+    if(once.dataset.busy)return;
+    once.dataset.busy="1";
+
+    try{
+      const r=await fetch(`/api/media-once/${encodeURIComponent(m.id)}`);
+
+      if(!r.ok){
+        throw new Error(
+          r.status===410
+            ?"This one-time item was already opened."
+            :"Could not open media."
+        );
+      }
+
+      const blob=await r.blob();
+      const url=URL.createObjectURL(blob);
+
+      if(m.type==="image"){
+        once.outerHTML=`<img class="media" src="${url}" alt="image">`;
+      }else{
+        once.outerHTML=`<video class="media" controls autoplay playsinline src="${url}"></video>`;
+      }
+
+      const label=wrap.querySelector(".one-label");
+      if(label)label.textContent="1× opened";
+    }catch(e){
+      once.dataset.busy="";
+      toast(e.message);
+    }
+  });
+
+  const onceText=wrap.querySelector("[data-once-text]");
+
+  if(onceText) onceText.addEventListener("click",async e=>{
+    e.stopPropagation();
+
+    if(onceText.dataset.busy)return;
+    onceText.dataset.busy="1";
+
+    try{
+      const d=await api(
+        `/api/messages/${encodeURIComponent(m.id)}/open-once`,
+        {method:"POST"}
+      );
+
+      const p=document.createElement("p");
+      p.textContent=d.text;
+      onceText.replaceWith(p);
+
+      const label=wrap.querySelector(".one-label");
+      if(label)label.textContent="1× opened";
+    }catch(e){
+      onceText.dataset.busy="";
+
+      if(e.message!=="AUTH")toast(e.message);
+    }
+  });
 }
+
+function markMessageDeletedForEveryone(row){
+  if(!row)return;
+
+  selectedMessages.delete(row.dataset.message);
+  row.classList.remove("selected");
+
+  const hit=row.querySelector(".message-action-hit");
+  if(!hit)return;
+
+  hit.innerHTML=`
+    <div class="bubble deleted-bubble">
+      <p class="deleted">Message deleted for everyone</p>
+      <div class="meta">
+        <span>${time(new Date().toISOString())}</span>
+      </div>
+    </div>
+  `;
+
+  updateSelectionUI();
+}
+
 function markRead(id){socket?.emit("read",{messageId:id});api(`/api/messages/${id}/read`,{method:"POST"}).catch(()=>{})}
 document.addEventListener("visibilitychange",()=>{
  if(document.hidden)return;
@@ -150,6 +311,462 @@ async function sendFile(file){
  catch(e){toast(e.message)}
 }
 function resize(){const x=$("#textInput");x.style.height="auto";x.style.height=Math.min(x.scrollHeight,130)+"px"}
+
+
+/* ---------------- Message actions ---------------- */
+
+function ensureMessageActionStyles(){
+  if(actionStylesReady)return;
+  actionStylesReady=true;
+
+  const style=document.createElement("style");
+  style.id="chatspace-message-actions-style";
+  style.textContent=`
+    .message-action-hit{
+      position:relative;
+      border-radius:22px;
+      transition:transform .16s ease,filter .16s ease,outline .16s ease;
+    }
+
+    .message-action-hit.selected{
+      outline:2px solid rgba(125,211,252,.85);
+      filter:brightness(1.12);
+      transform:scale(1.01);
+    }
+
+    .bubble .forwarded-label{
+      font-size:11px;
+      opacity:.72;
+      margin-bottom:6px;
+      font-weight:700;
+      letter-spacing:.04em;
+    }
+
+    .deleted-bubble{
+      opacity:.7;
+    }
+
+    .message-selection-bar{
+      position:fixed;
+      left:50%;
+      bottom:22px;
+      transform:translateX(-50%);
+      z-index:9998;
+      display:flex;
+      align-items:center;
+      gap:8px;
+      padding:10px 12px;
+      border:1px solid rgba(255,255,255,.14);
+      border-radius:18px;
+      background:rgba(16,22,38,.88);
+      backdrop-filter:blur(18px);
+      box-shadow:0 16px 50px rgba(0,0,0,.35);
+    }
+
+    .message-selection-bar button,
+    .message-context-menu button{
+      border:0;
+      color:inherit;
+      background:rgba(255,255,255,.08);
+      padding:9px 12px;
+      border-radius:12px;
+      cursor:pointer;
+      font:inherit;
+    }
+
+    .message-selection-bar button:hover,
+    .message-context-menu button:hover{
+      background:rgba(255,255,255,.15);
+    }
+
+    .message-selection-count{
+      font-weight:800;
+      padding:0 6px;
+      white-space:nowrap;
+    }
+
+    .message-context-menu{
+      position:fixed;
+      z-index:10000;
+      min-width:210px;
+      padding:7px;
+      display:flex;
+      flex-direction:column;
+      gap:4px;
+      border:1px solid rgba(255,255,255,.14);
+      border-radius:16px;
+      background:rgba(13,18,32,.96);
+      backdrop-filter:blur(20px);
+      box-shadow:0 20px 60px rgba(0,0,0,.42);
+    }
+
+    .message-context-menu button{
+      text-align:left;
+      background:transparent;
+    }
+
+    .message-context-menu .danger{
+      color:#ffb4b4;
+    }
+
+    .message-context-menu .disabled{
+      opacity:.45;
+      pointer-events:none;
+    }
+
+    .message-selection-mode .bubble-row{
+      cursor:pointer;
+    }
+
+    @media(max-width:700px){
+      .message-selection-bar{
+        left:10px;
+        right:10px;
+        bottom:12px;
+        transform:none;
+        justify-content:center;
+        flex-wrap:wrap;
+      }
+
+      .message-context-menu{
+        min-width:190px;
+      }
+    }
+  `;
+
+  document.head.appendChild(style);
+}
+
+function getMessageData(id){
+  return window.__chatMessages?.find(m=>m.id===id)||null;
+}
+
+function rememberMessage(m){
+  if(!window.__chatMessages)window.__chatMessages=[];
+  const i=window.__chatMessages.findIndex(x=>x.id===m.id);
+
+  if(i>=0)window.__chatMessages[i]=m;
+  else window.__chatMessages.push(m);
+}
+
+function toggleMessageSelection(id){
+  if(!id)return;
+
+  closeMessageMenu();
+
+  if(selectedMessages.has(id)){
+    selectedMessages.delete(id);
+  }else{
+    selectedMessages.add(id);
+  }
+
+  const row=document.querySelector(`[data-message="${id}"]`);
+  row?.classList.toggle("selected",selectedMessages.has(id));
+  row?.querySelector(".message-action-hit")?.classList.toggle(
+    "selected",
+    selectedMessages.has(id)
+  );
+
+  document.body.classList.toggle(
+    "message-selection-mode",
+    selectedMessages.size>0
+  );
+
+  updateSelectionUI();
+}
+
+function clearMessageSelection(){
+  selectedMessages.clear();
+
+  document.querySelectorAll(".message-action-hit.selected")
+    .forEach(x=>x.classList.remove("selected"));
+
+  document.body.classList.remove("message-selection-mode");
+
+  const bar=document.querySelector(".message-selection-bar");
+  if(bar)bar.remove();
+
+  closeMessageMenu();
+}
+
+function updateSelectionUI(){
+  const count=selectedMessages.size;
+
+  let bar=document.querySelector(".message-selection-bar");
+
+  if(!count){
+    if(bar)bar.remove();
+    document.body.classList.remove("message-selection-mode");
+    return;
+  }
+
+  document.body.classList.add("message-selection-mode");
+
+  if(!bar){
+    bar=document.createElement("div");
+    bar.className="message-selection-bar";
+    document.body.appendChild(bar);
+  }
+
+  const selected=[...selectedMessages]
+    .map(getMessageData)
+    .filter(Boolean);
+
+  const canForward=selected.length>0 &&
+    selected.every(m=>!m.oneTime&&!m.deletedAt);
+
+  const canDeleteEveryone=selected.length>0 &&
+    selected.every(m=>m.mine&&!m.deletedAt);
+
+  bar.innerHTML=`
+    <span class="message-selection-count">
+      ${count} selected
+    </span>
+
+    <button type="button" data-action="forward"
+      ${canForward?"":"disabled"}>
+      ↗ Forward
+    </button>
+
+    <button type="button" data-action="delete-me">
+      Delete for me
+    </button>
+
+    <button type="button" data-action="delete-everyone"
+      ${canDeleteEveryone?"":"disabled"}>
+      Delete for everyone
+    </button>
+
+    <button type="button" data-action="cancel">
+      Cancel
+    </button>
+  `;
+
+  bar.querySelector('[data-action="forward"]')
+    ?.addEventListener("click",forwardSelected);
+
+  bar.querySelector('[data-action="delete-me"]')
+    ?.addEventListener("click",()=>deleteSelected("me"));
+
+  bar.querySelector('[data-action="delete-everyone"]')
+    ?.addEventListener("click",()=>deleteSelected("everyone"));
+
+  bar.querySelector('[data-action="cancel"]')
+    ?.addEventListener("click",clearMessageSelection);
+}
+
+function openMessageMenu(m,x,y){
+  ensureMessageActionStyles();
+  closeMessageMenu();
+
+  const menu=document.createElement("div");
+  menu.className="message-context-menu";
+  contextMenu=menu;
+
+  const canForward=!m.oneTime&&!m.deletedAt;
+  const canDeleteEveryone=m.mine&&!m.deletedAt;
+
+  menu.innerHTML=`
+    <button type="button" data-action="select">✓ Select</button>
+    <button type="button" data-action="forward"
+      class="${canForward?"":"disabled"}">↗ Forward</button>
+    <button type="button" data-action="delete-me">Delete for me</button>
+    <button type="button" data-action="delete-everyone"
+      class="${canDeleteEveryone?"":"disabled"}">
+      Delete for everyone
+    </button>
+  `;
+
+  document.body.appendChild(menu);
+
+  const pad=10;
+  const rect=menu.getBoundingClientRect();
+
+  menu.style.left=`${Math.max(pad,Math.min(x,innerWidth-rect.width-pad))}px`;
+  menu.style.top=`${Math.max(pad,Math.min(y,innerHeight-rect.height-pad))}px`;
+
+  menu.querySelector('[data-action="select"]')
+    .addEventListener("click",()=>toggleMessageSelection(m.id));
+
+  menu.querySelector('[data-action="forward"]')
+    .addEventListener("click",()=>{
+      if(!canForward)return;
+      selectedMessages.clear();
+      selectedMessages.add(m.id);
+      updateSelectionUI();
+      forwardSelected();
+    });
+
+  menu.querySelector('[data-action="delete-me"]')
+    .addEventListener("click",()=>{
+      selectedMessages.clear();
+      selectedMessages.add(m.id);
+      deleteSelected("me");
+    });
+
+  menu.querySelector('[data-action="delete-everyone"]')
+    .addEventListener("click",()=>{
+      if(!canDeleteEveryone)return;
+      selectedMessages.clear();
+      selectedMessages.add(m.id);
+      deleteSelected("everyone");
+    });
+}
+
+function closeMessageMenu(){
+  if(contextMenu){
+    contextMenu.remove();
+    contextMenu=null;
+  }
+}
+
+document.addEventListener("pointerdown",e=>{
+  if(contextMenu&&!e.target.closest(".message-context-menu")){
+    closeMessageMenu();
+  }
+});
+
+async function deleteOneMessage(id,mode){
+  try{
+    await api(
+      `/api/messages/${encodeURIComponent(id)}/delete-${mode==="me"?"for-me":"for-everyone"}`,
+      {method:"POST"}
+    );
+
+    if(mode==="me"){
+      const row=document.querySelector(`[data-message="${id}"]`);
+      if(row)row.remove();
+    }else{
+      const row=document.querySelector(`[data-message="${id}"]`);
+      if(row)markMessageDeletedForEveryone(row);
+    }
+
+    selectedMessages.delete(id);
+    updateSelectionUI();
+  }catch(e){
+    if(e.message!=="AUTH")toast(e.message);
+  }
+}
+
+async function deleteSelected(mode){
+  closeMessageMenu();
+
+  const ids=[...selectedMessages];
+  if(!ids.length)return;
+
+  const title=mode==="me"
+    ? `Delete ${ids.length} message${ids.length>1?"s":""} for you?`
+    : `Delete ${ids.length} message${ids.length>1?"s":""} for everyone?`;
+
+  if(!confirm(title))return;
+
+  for(const id of ids){
+    await deleteOneMessage(id,mode);
+  }
+
+  clearMessageSelection();
+}
+
+function forwardSelected(){
+  closeMessageMenu();
+
+  const ids=[...selectedMessages];
+  if(!ids.length)return;
+
+  const messages=ids
+    .map(getMessageData)
+    .filter(Boolean);
+
+  if(messages.some(m=>m.oneTime||m.deletedAt)){
+    toast("One-time or deleted messages cannot be forwarded.");
+    return;
+  }
+
+  if(messages.length===1){
+    openForwardFriendPicker(messages[0].id);
+    return;
+  }
+
+  openForwardFriendPicker(ids);
+}
+
+function openForwardFriendPicker(messageIds){
+  const ids=Array.isArray(messageIds)?messageIds:[messageIds];
+
+  if(!friends.length){
+    toast("You don't have any friends to forward to.");
+    return;
+  }
+
+  const html=`
+    <h2>Forward message${ids.length>1?"s":""}</h2>
+    <p class="help">Choose a friend to receive ${ids.length>1?"these messages":"this message"}.</p>
+
+    <div id="forwardFriends" style="
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+      margin-top:16px;
+      max-height:55vh;
+      overflow:auto;
+    ">
+      ${friends.map(f=>`
+        <button
+          type="button"
+          class="friend"
+          data-forward-user="${esc(f.id)}"
+          style="
+            width:100%;
+            display:flex;
+            align-items:center;
+            gap:10px;
+            text-align:left;
+            border:0;
+            cursor:pointer;
+          "
+        >
+          ${avatar(f)}
+          <span class="friend-info">
+            <strong>${esc(f.displayName)}</strong>
+            <span>@${esc(f.username)}</span>
+          </span>
+        </button>
+      `).join("")}
+    </div>
+  `;
+
+  openModal(html);
+
+  document.querySelectorAll("[data-forward-user]").forEach(btn=>{
+    btn.addEventListener("click",async()=>{
+      const recipientId=btn.dataset.forwardUser;
+
+      btn.disabled=true;
+
+      try{
+        for(const id of ids){
+          await api(
+            `/api/messages/${encodeURIComponent(id)}/forward`,
+            {
+              method:"POST",
+              headers:{"Content-Type":"application/json"},
+              body:JSON.stringify({recipientId})
+            }
+          );
+        }
+
+        closeModal();
+        clearMessageSelection();
+        toast("Message forwarded.");
+      }catch(e){
+        btn.disabled=false;
+        if(e.message!=="AUTH")toast(e.message);
+      }
+    });
+  });
+}
+
+ensureMessageActionStyles();
 
 /* ---------------- Emoji picker ---------------- */
 const EMOJI_CATS=[

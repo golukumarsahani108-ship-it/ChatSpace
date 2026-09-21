@@ -3,3 +3,226 @@
 @media(max-width:800px){.app-shell{grid-template-columns:1fr;padding:8px}.sidebar{position:fixed;z-index:5;inset:8px auto 8px 8px;width:min(330px,calc(100vw - 16px));transform:translateX(-110%);transition:.25s}.app-shell.show-sidebar .sidebar{transform:none}.chat-panel{height:calc(100vh - 16px)}.mobile-back{display:block}.bubble{max-width:84%}.messages{padding:16px}.landing-card{padding:38px 24px}.landing h1{letter-spacing:-2px}.chat-head{padding:12px}.composer{padding:9px}}
 
 .media-once{width:min(280px,70vw);height:150px;border-radius:14px;border:1px solid rgba(122,211,255,.18);background:linear-gradient(135deg,rgba(29,89,139,.7),rgba(10,28,57,.9));color:#a9e4ff;cursor:pointer;font-size:28px}.media-once small{font-size:11px;color:#a5bcd4}
+
+/* =========================================================
+   MESSAGE ACTIONS
+========================================================= */
+
+.bubble-row {
+  position: relative;
+}
+
+.bubble {
+  position: relative;
+}
+
+.message-more {
+  position: absolute;
+  top: 6px;
+  right: 7px;
+
+  width: 28px;
+  height: 28px;
+
+  border: 0;
+  border-radius: 9px;
+
+  background: rgba(255,255,255,.08);
+  color: inherit;
+
+  cursor: pointer;
+
+  opacity: 0;
+  transition: .18s ease;
+
+  z-index: 5;
+}
+
+.bubble:hover .message-more,
+.message-more:focus {
+  opacity: 1;
+}
+
+.message-more:hover {
+  background: rgba(255,255,255,.16);
+  transform: scale(1.05);
+}
+
+
+/* ACTION MENU */
+
+.message-action-menu {
+  min-width: 190px;
+
+  padding: 7px;
+
+  border: 1px solid rgba(255,255,255,.15);
+  border-radius: 16px;
+
+  background: rgba(20, 24, 40, .96);
+
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+
+  box-shadow:
+    0 18px 50px rgba(0,0,0,.35);
+
+  z-index: 99999;
+
+  animation: messageMenuIn .16s ease;
+}
+
+.message-action-menu button {
+  width: 100%;
+
+  border: 0;
+  border-radius: 11px;
+
+  padding: 10px 12px;
+
+  background: transparent;
+  color: inherit;
+
+  text-align: left;
+
+  cursor: pointer;
+
+  font-size: 13px;
+}
+
+.message-action-menu button:hover {
+  background: rgba(255,255,255,.09);
+}
+
+@keyframes messageMenuIn {
+  from {
+    opacity: 0;
+    transform: translateY(-5px) scale(.97);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+
+/* SELECTED MESSAGE */
+
+.bubble-row.selected-message .bubble {
+  outline: 2px solid rgba(130, 180, 255, .75);
+
+  box-shadow:
+    0 0 0 5px rgba(130,180,255,.10);
+}
+
+
+/* SELECTION BAR */
+
+#messageSelectionBar {
+  position: fixed;
+
+  left: 50%;
+  bottom: 18px;
+
+  transform:
+    translate(-50%, 20px);
+
+  width: min(920px, calc(100vw - 28px));
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 15px;
+
+  padding: 11px 14px;
+
+  border: 1px solid rgba(255,255,255,.16);
+  border-radius: 18px;
+
+  background: rgba(18,22,38,.94);
+
+  backdrop-filter: blur(22px);
+  -webkit-backdrop-filter: blur(22px);
+
+  box-shadow:
+    0 20px 60px rgba(0,0,0,.38);
+
+  z-index: 99998;
+
+  opacity: 0;
+  pointer-events: none;
+
+  transition: .2s ease;
+}
+
+#messageSelectionBar.show {
+  opacity: 1;
+
+  pointer-events: auto;
+
+  transform:
+    translate(-50%, 0);
+}
+
+.selection-left,
+.selection-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.selection-left button,
+.selection-actions button {
+  border: 0;
+
+  border-radius: 10px;
+
+  padding: 8px 11px;
+
+  background: rgba(255,255,255,.08);
+
+  color: inherit;
+
+  cursor: pointer;
+}
+
+.selection-actions button:hover,
+.selection-left button:hover {
+  background: rgba(255,255,255,.15);
+}
+
+#deleteForEveryoneSelected {
+  color: #ffb4b4;
+}
+
+@media (max-width: 700px) {
+
+  #messageSelectionBar {
+    flex-direction: column;
+    align-items: stretch;
+
+    bottom: 10px;
+
+    padding: 10px;
+  }
+
+  .selection-left {
+    justify-content: space-between;
+  }
+
+  .selection-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .selection-actions button {
+    font-size: 12px;
+  }
+
+  .message-more {
+    opacity: .75;
+  }
+
+}

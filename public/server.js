@@ -37,6 +37,17 @@ function loadDB() {
   }
 }
 let db = loadDB();
+
+/* Upgrade old message records created before message actions existed. */
+db.messages.forEach(m => {
+  if (!Array.isArray(m.deletedFor)) m.deletedFor = [];
+  if (typeof m.forwarded !== "boolean") m.forwarded = false;
+  if (!Object.prototype.hasOwnProperty.call(m,"forwardedFrom")) {
+    m.forwardedFrom = null;
+  }
+});
+saveDB();
+
 // After a restart/crash nobody is really connected, so clear stale "online" flags.
 db.users.forEach(u => { u.online = false; });
 
@@ -105,9 +116,9 @@ function canAccessConversation(uid, cid) {
 }
 function messageView(m, viewerId) {
   const sender = userById(m.senderId);
-
   const deletedForMe =
-    Array.isArray(m.deletedFor) && m.deletedFor.includes(viewerId);
+    Array.isArray(m.deletedFor) &&
+    m.deletedFor.includes(viewerId);
 
   return {
     id: m.id,
@@ -138,15 +149,15 @@ function messageView(m, viewerId) {
 
     oneTime: Boolean(m.oneTime),
     viewedAt: m.viewedAt || null,
-
     deletedAt: m.deletedAt || null,
     deletedForMe,
-
     createdAt: m.createdAt,
     deliveredAt: m.deliveredAt || null,
     readAt: m.readAt || null,
+    mine: m.senderId === viewerId,
 
-    mine: m.senderId === viewerId
+    forwarded: Boolean(m.forwarded),
+    forwardedFrom: m.forwardedFrom || null
   };
 }
 
@@ -395,6 +406,7 @@ app.post("/api/messages/media", auth, upload.single("file"), (req,res) => {
     oneTime:String(req.body.oneTime) === "true",
     viewedAt:null,
     deletedAt:null,
+    deletedFor:[],
     createdAt:now(),
     deliveredAt: other.online ? now() : null,
     readAt:null
@@ -450,13 +462,38 @@ app.use("/media", auth, (req,res,next) => {
 
 app.get("/api/conversations/:friendId/messages", auth, (req,res) => {
   const fid = req.params.friendId;
-  if (!userById(fid) || !areFriends(req.user.id,fid)) return sendError(res,"NOT_ALLOWED","You can only open a chat with a friend.",403);
+
+  if (!userById(fid) || !areFriends(req.user.id,fid)) {
+    return sendError(
+      res,
+      "NOT_ALLOWED",
+      "You can only open a chat with a friend.",
+      403
+    );
+  }
+
   const cid = makeConversationId(req.user.id,fid);
-  const messages = db.messages.filter(m => m.conversationId === cid && !m.deletedAt)
-    .slice(-100).map(m => messageView(m,req.user.id));
-  const changed = db.messages.filter(m => m.conversationId === cid && m.recipientId === req.user.id && !m.deliveredAt && !m.deletedAt);
+
+  const messages = db.messages
+    .filter(m =>
+      m.conversationId === cid &&
+      !(Array.isArray(m.deletedFor) && m.deletedFor.includes(req.user.id))
+    )
+    .slice(-100)
+    .map(m => messageView(m,req.user.id));
+
+  const changed = db.messages.filter(m =>
+    m.conversationId === cid &&
+    m.recipientId === req.user.id &&
+    !m.deliveredAt &&
+    !m.deletedAt &&
+    !(Array.isArray(m.deletedFor) && m.deletedFor.includes(req.user.id))
+  );
+
   changed.forEach(m => m.deliveredAt = now());
+
   if (changed.length) saveDB();
+
   res.json({ messages });
 });
 
@@ -474,13 +511,11 @@ app.post("/api/messages/text", auth, (req,res) => {
     type:"text",
     text,
     mediaUrl:null, mediaName:null, mediaMime:null,
-   oneTime: String(req.body.oneTime) === "true",
-viewedAt: null,
-
-deletedAt: null,
-deletedFor: [],
-
-createdAt: now(),
+    oneTime:String(req.body.oneTime) === "true",
+    viewedAt:null,
+    deletedAt:null,
+    deletedFor:[],
+    createdAt:now(),
     deliveredAt:recipient.online ? now() : null,
     readAt:null
   };
@@ -510,18 +545,23 @@ app.post("/api/messages/:id/open-once", auth, (req,res) => {
   res.json({ ok:true, text:m.text });
 });
 
-/* ================= MESSAGE DELETE ================= */
+/* ================= MESSAGE ACTIONS ================= */
 
 /* DELETE FOR ME */
-app.post("/api/messages/:id/delete-for-me", auth, (req, res) => {
+app.post("/api/messages/:id/delete-for-me", auth, (req,res) => {
   const m = db.messages.find(x => x.id === req.params.id);
 
   if (!m) {
-    return sendError(res, "NOT_FOUND", "Message not found.", 404);
+    return sendError(res,"NOT_FOUND","Message not found.",404);
   }
 
-  if (![m.senderId, m.recipientId].includes(req.user.id)) {
-    return sendError(res, "NOT_ALLOWED", "You cannot delete this message.", 403);
+  if (![m.senderId,m.recipientId].includes(req.user.id)) {
+    return sendError(
+      res,
+      "NOT_ALLOWED",
+      "You cannot delete this message.",
+      403
+    );
   }
 
   if (!Array.isArray(m.deletedFor)) {
@@ -535,25 +575,24 @@ app.post("/api/messages/:id/delete-for-me", auth, (req, res) => {
   saveDB();
 
   io.to(`user:${req.user.id}`).emit("message:deleted-for-me", {
-    id: m.id
+    id:m.id
   });
 
   res.json({
-    ok: true,
-    id: m.id
+    ok:true,
+    id:m.id
   });
 });
 
 
 /* DELETE FOR EVERYONE */
-app.post("/api/messages/:id/delete-for-everyone", auth, (req, res) => {
+app.post("/api/messages/:id/delete-for-everyone", auth, (req,res) => {
   const m = db.messages.find(x => x.id === req.params.id);
 
   if (!m) {
-    return sendError(res, "NOT_FOUND", "Message not found.", 404);
+    return sendError(res,"NOT_FOUND","Message not found.",404);
   }
 
-  // Sender-only, same safety rule as your existing delete endpoint
   if (m.senderId !== req.user.id) {
     return sendError(
       res,
@@ -564,7 +603,7 @@ app.post("/api/messages/:id/delete-for-everyone", auth, (req, res) => {
   }
 
   if (m.deletedAt) {
-    return res.json({ ok: true });
+    return res.json({ ok:true,id:m.id });
   }
 
   m.deletedAt = now();
@@ -572,20 +611,137 @@ app.post("/api/messages/:id/delete-for-everyone", auth, (req, res) => {
   saveDB();
 
   io.to(`user:${m.senderId}`).emit("message:deleted", {
-    id: m.id,
-    mode: "everyone"
+    id:m.id,
+    mode:"everyone"
   });
 
   io.to(`user:${m.recipientId}`).emit("message:deleted", {
-    id: m.id,
-    mode: "everyone"
+    id:m.id,
+    mode:"everyone"
   });
 
   res.json({
-    ok: true,
-    id: m.id
+    ok:true,
+    id:m.id
   });
 });
+
+
+/* FORWARD */
+app.post("/api/messages/:id/forward", auth, (req,res) => {
+  const original = db.messages.find(x => x.id === req.params.id);
+  const recipient = userById(req.body.recipientId);
+
+  if (!original) {
+    return sendError(res,"NOT_FOUND","Message not found.",404);
+  }
+
+  if (!recipient || recipient.id === req.user.id) {
+    return sendError(res,"BAD_RECIPIENT","Invalid recipient.");
+  }
+
+  if (!areFriends(req.user.id,recipient.id)) {
+    return sendError(
+      res,
+      "NOT_ALLOWED",
+      "You can only forward to friends.",
+      403
+    );
+  }
+
+  if (![original.senderId,original.recipientId].includes(req.user.id)) {
+    return sendError(
+      res,
+      "NOT_ALLOWED",
+      "You cannot forward this message.",
+      403
+    );
+  }
+
+  if (original.deletedAt) {
+    return sendError(
+      res,
+      "DELETED",
+      "Deleted messages cannot be forwarded."
+    );
+  }
+
+  if (original.oneTime) {
+    return sendError(
+      res,
+      "ONE_TIME",
+      "One-time messages cannot be forwarded."
+    );
+  }
+
+  let mediaUrl = null;
+
+  /* Make a separate media copy so forwarding does not depend
+     on the original media message staying alive. */
+  if (original.type === "image" || original.type === "video") {
+    const originalName = path.basename(original.mediaUrl || "");
+    const originalFile = path.join(UPLOAD_DIR,originalName);
+
+    if (!originalName || !fs.existsSync(originalFile)) {
+      return sendError(
+        res,
+        "FILE_NOT_FOUND",
+        "Original media file is no longer available.",
+        404
+      );
+    }
+
+    const newName =
+      `${Date.now()}-${crypto.randomBytes(8).toString("hex")}${safeExt(original.mediaMime)}`;
+
+    const newFile = path.join(UPLOAD_DIR,newName);
+    fs.copyFileSync(originalFile,newFile);
+    mediaUrl = `/media/${newName}`;
+  }
+
+  const forwarded = {
+    id:id(),
+    conversationId:makeConversationId(req.user.id,recipient.id),
+    senderId:req.user.id,
+    recipientId:recipient.id,
+    type:original.type,
+    text:original.type === "text" ? (original.text || "") : "",
+    mediaUrl,
+    mediaName:original.mediaName || null,
+    mediaMime:original.mediaMime || null,
+    oneTime:false,
+    viewedAt:null,
+    deletedAt:null,
+    deletedFor:[],
+    forwarded:true,
+    forwardedFrom:original.id,
+    createdAt:now(),
+    deliveredAt:recipient.online ? now() : null,
+    readAt:null
+  };
+
+  db.messages.push(forwarded);
+  saveDB();
+
+  const recipientPayload = messageView(forwarded,recipient.id);
+  const senderPayload = messageView(forwarded,req.user.id);
+
+  io.to(`user:${recipient.id}`).emit(
+    "message:new",
+    recipientPayload
+  );
+
+  io.to(`user:${req.user.id}`).emit(
+    "message:new",
+    senderPayload
+  );
+
+  res.json({
+    ok:true,
+    message:senderPayload
+  });
+});
+
 
 app.get("/api/health", (req,res) => res.json({ok:true, users:db.users.length, maxUsers:MAX_USERS}));
 
@@ -648,122 +804,4 @@ server.listen(PORT, () => {
   console.log(`Google redirect URI (must match Google Cloud Console EXACTLY): ${cb}`);
   if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) console.warn("WARNING: GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET missing in .env");
   if (process.env.NODE_ENV === "production" && !cb.startsWith("https://")) console.warn("WARNING: NODE_ENV=production sets secure cookies; over plain http the login will loop back to the home page.");
-});
-
-/* ================= FORWARD MESSAGES ================= */
-
-app.post("/api/messages/forward", auth, (req, res) => {
-  const messageIds = Array.isArray(req.body.messageIds)
-    ? req.body.messageIds
-    : [];
-
-  const recipientIds = Array.isArray(req.body.recipientIds)
-    ? req.body.recipientIds
-    : [];
-
-  if (!messageIds.length) {
-    return sendError(res, "NO_MESSAGES", "Select at least one message.");
-  }
-
-  if (!recipientIds.length) {
-    return sendError(res, "NO_RECIPIENT", "Choose a friend.");
-  }
-
-  const senderId = req.user.id;
-
-  const recipients = recipientIds
-    .map(userById)
-    .filter(Boolean)
-    .filter(u => u.id !== senderId);
-
-  if (!recipients.length) {
-    return sendError(res, "BAD_RECIPIENT", "No valid recipient found.");
-  }
-
-  const sourceMessages = messageIds
-    .map(id => db.messages.find(m => m.id === id))
-    .filter(Boolean)
-    .filter(m =>
-      [m.senderId, m.recipientId].includes(senderId)
-    )
-    .filter(m =>
-      !m.deletedAt &&
-      !(Array.isArray(m.deletedFor) && m.deletedFor.includes(senderId))
-    );
-
-  if (!sourceMessages.length) {
-    return sendError(res, "NOT_FOUND", "Selected messages are unavailable.");
-  }
-
-  // One-time messages are intentionally not forwardable.
-  if (sourceMessages.some(m => m.oneTime)) {
-    return sendError(
-      res,
-      "ONE_TIME",
-      "One-time messages cannot be forwarded."
-    );
-  }
-
-  const created = [];
-
-  for (const recipient of recipients) {
-    if (!areFriends(senderId, recipient.id)) {
-      continue;
-    }
-
-    for (const source of sourceMessages) {
-      const forwarded = {
-        id: id(),
-
-        conversationId:
-          makeConversationId(senderId, recipient.id),
-
-        senderId,
-        recipientId: recipient.id,
-
-        type: source.type,
-        text: source.type === "text" ? source.text : "",
-
-        mediaUrl: source.mediaUrl || null,
-        mediaName: source.mediaName || null,
-        mediaMime: source.mediaMime || null,
-
-        oneTime: false,
-        viewedAt: null,
-
-        deletedAt: null,
-        deletedFor: [],
-
-        createdAt: now(),
-
-        deliveredAt:
-          recipient.online ? now() : null,
-
-        readAt: null,
-
-        forwarded: true,
-        forwardedFrom: source.id
-      };
-
-      db.messages.push(forwarded);
-      created.push(forwarded);
-
-      io.to(`user:${recipient.id}`).emit(
-        "message:new",
-        messageView(forwarded, recipient.id)
-      );
-
-      io.to(`user:${senderId}`).emit(
-        "message:new",
-        messageView(forwarded, senderId)
-      );
-    }
-  }
-
-  saveDB();
-
-  res.json({
-    ok: true,
-    count: created.length
-  });
 });
