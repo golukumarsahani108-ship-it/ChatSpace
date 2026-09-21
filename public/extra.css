@@ -279,3 +279,73 @@ body.settings-page .settings-shell {
   color: #203e59 !important;
   border-color: rgba(75,139,177,.24) !important;
 }
+
+/* =========================================================
+   CHAT MESSAGE LAYOUT FIX
+   Keep bubbles stable like WhatsApp/Telegram:
+   - long messages wrap instead of forcing horizontal overflow
+   - bubble width follows its content up to a safe maximum
+   - action wrapper cannot become wider than the bubble
+   - timestamps stay inside the same bubble
+========================================================= */
+
+#messages {
+  min-width: 0;
+  width: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.bubble-row {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.bubble-row .message-action-hit {
+  min-width: 0;
+  width: fit-content;
+  max-width: min(72%, 680px);
+}
+
+.bubble {
+  min-width: 0;
+  width: fit-content;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.bubble p {
+  min-width: 0;
+  max-width: 100%;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.bubble .meta {
+  min-width: 0;
+  max-width: 100%;
+  white-space: nowrap;
+}
+
+.bubble .media,
+.bubble img,
+.bubble video {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+@media (max-width: 800px) {
+  .bubble-row .message-action-hit {
+    max-width: 84%;
+  }
+}
+
+@media (max-width: 520px) {
+  .bubble-row .message-action-hit {
+    max-width: 89%;
+  }
+}
